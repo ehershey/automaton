@@ -1,0 +1,6 @@
+{
+    "server": "irc.slashnet.org",
+    "nick": "thebot",
+    "commandChar": ".",
+    "channels": ["#telerama"]
+}

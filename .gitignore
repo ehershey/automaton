@@ -1,6 +1,10 @@
-*.class
+#mvn output
+target/
 
-# Package Files #
-*.jar
-*.war
-*.ear
+#gunk
+.idea/
+.classpath
+.settings/
+*.iml
+#netbeans
+.DS_Store
