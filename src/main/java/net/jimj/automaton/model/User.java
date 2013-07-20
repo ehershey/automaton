@@ -28,6 +28,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 public class User {
     private String nick;
     private String hostMask;
+    private String channel;
     private int level;
     private boolean nickTrusted; //Can the bot rely on NickServ?
 
@@ -70,5 +71,13 @@ public class User {
 
     public void setNickTrusted(boolean nickTrusted) {
         this.nickTrusted = nickTrusted;
+    }
+
+    public String getChannel() {
+        return channel;
+    }
+
+    public void setChannel(String channel) {
+        this.channel = channel;
     }
 }

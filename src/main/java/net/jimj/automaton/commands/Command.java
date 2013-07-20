@@ -22,12 +22,24 @@
 
 package net.jimj.automaton.commands;
 
-import net.jimj.automaton.BotAction;
+import net.jimj.automaton.events.Event;
 import net.jimj.automaton.model.User;
 
-import java.util.List;
-
+/**
+ * Represent a command for the bot to execute.
+ */
 public abstract class Command {
-    public abstract List<BotAction> execute(User user, String channel, String args);
+    private CommandObserver observer;
+
+    public abstract String getCommandName();
+    public abstract void execute(User user, String args);
     public abstract boolean authorized(User user);
+
+    public void addObserver(CommandObserver observer) {
+        this.observer = observer;
+    }
+
+    public void notifyObserver(Event event) {
+        observer.observe(event);
+    }
 }

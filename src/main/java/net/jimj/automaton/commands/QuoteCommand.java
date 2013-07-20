@@ -26,36 +26,40 @@ import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
-import net.jimj.automaton.BotAction;
+import net.jimj.automaton.events.MessageEvent;
 import net.jimj.automaton.model.User;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Random;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 public class QuoteCommand extends Command {
-    private static String lastQuoteStats = null;
+    protected static final String QUOTE_NICK = "nick";
+    protected static final String QUOTE_QUOTE = "quote";
+    protected static final String QUOTE_NETWORK = "network";
+    private static final Pattern TIMESTAMP = Pattern.compile(".*([0-9]{1,2}:[0-9][0-9]).*");
+    private static final String NO_QUOTES = "No quotes found.";
 
-    public static final String QUOTE_NICK = "nick";
-    public static final String QUOTE_QUOTE = "quote";
-    public static final String QUOTE_NETWORK = "network";
-    public static final Pattern TIMESTAMP = Pattern.compile(".*([0-9]{1,2}:[0-9][0-9]).*");
-    public static final String NO_QUOTES = "No quotes found.";
+    private DBCollection quotes;
     private static final Logger LOGGER = LoggerFactory.getLogger(QuoteCommand.class);
     private static Random random = new Random();
-    private DBCollection quotes;
 
     public QuoteCommand(DBCollection quotes) {
-        super();
         this.quotes = quotes;
     }
 
     @Override
-    public List<BotAction> execute(User user, String channel, String args) {
-        List<BotAction> actions = new ArrayList<>();
+    public String getCommandName() {
+        return "quote";
+    }
 
+    @Override
+    public void execute(User user, String args) {
         if(args == null) {
             args = "";
         }
@@ -70,22 +74,24 @@ public class QuoteCommand extends Command {
         //If there's more than 1 argument, and no search term.
         if(argParts.length > 1 && searchStart == searchEnd) {
             LOGGER.debug(String.format("%d > 1 && %d == %d", argParts.length, searchStart, searchEnd));
-            actions.add(storeQuote(args, argParts));
+            if(storeQuote(args, argParts)) {
+                notifyObserver(new MessageEvent(user, "quote stored."));
+            }else {
+                notifyObserver(new MessageEvent(user, "I couldn't parse the quote correctly."));
+            }
         }else {
-            actions.add(getQuote(args));
+            notifyObserver(new MessageEvent(user, getQuote(args)));
         }
-        return actions;
     }
 
-    protected BotAction storeQuote(String args, String[] argParts) {
-        BotAction result = new BotAction(BotAction.Type.MESSAGE);
+    protected boolean storeQuote(String args, String[] argParts) {
+        boolean stored = false;
 
         //Try to determine the start of the quote based on the assumption that
         //pasted quotes will contain nicknames surrounded by some sort of 'special' character.
         int quoteStart = findQuoteStart(argParts);
         if(quoteStart == -1) {
             LOGGER.warn("Couldn't find nick in quote " + args);
-            result.setPayload("I couldn't parse the quote correctly.");
         } else {
             Set<String> nicks = findNickCandidates(argParts);
 
@@ -112,10 +118,9 @@ public class QuoteCommand extends Command {
                 LOGGER.debug("Storing quote: " + quoteObj);
             }
             quotes.save(quoteObj);
-
-            result.setPayload("quote stored.");
+            stored = true;
         }
-        return result;
+        return stored;
     }
 
     protected String squash(String[] parts, int from) {
@@ -204,8 +209,7 @@ public class QuoteCommand extends Command {
         }
     }
 
-    protected BotAction getQuote(String arg) {
-        BotAction result = new BotAction(BotAction.Type.MESSAGE);
+    protected String getQuote(String arg) {
         BasicDBObject query = buildQuoteSearch(arg);
         if(LOGGER.isDebugEnabled()) {
             LOGGER.debug("Searching for quotes that match " + query);
@@ -213,8 +217,7 @@ public class QuoteCommand extends Command {
 
         BasicDBObject keysWanted = new BasicDBObject("_id", "1");
         List<DBObject> quoteIds = quotes.find(query,keysWanted).toArray();
-        result.setPayload(getRandomQuote(quoteIds));
-        return result;
+        return getRandomQuote(quoteIds);
     }
 
     protected BasicDBObject buildQuoteSearch(String arg) {

@@ -23,10 +23,20 @@
 package net.jimj.automaton;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mongodb.*;
+import com.mongodb.BasicDBObject;
+import com.mongodb.DB;
+import com.mongodb.DBCollection;
+import com.mongodb.DBCursor;
+import com.mongodb.DBObject;
 import net.jimj.automaton.commands.Command;
+import net.jimj.automaton.commands.CommandObserver;
 import net.jimj.automaton.commands.HeadCommand;
+import net.jimj.automaton.commands.KarmaCommand;
+import net.jimj.automaton.commands.Processor;
 import net.jimj.automaton.commands.QuoteCommand;
+import net.jimj.automaton.commands.YourMomCommand;
+import net.jimj.automaton.events.Event;
+import net.jimj.automaton.events.MessageEvent;
 import net.jimj.automaton.model.Config;
 import net.jimj.automaton.model.User;
 import org.apache.commons.lang.StringUtils;
@@ -35,14 +45,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 
-public class Bot extends PircBot {
+public class Bot extends PircBot implements CommandObserver {
     private static final Logger LOGGER = LoggerFactory.getLogger(Bot.class);
     private static final String USER_COLLECTION = "users";
     private ObjectMapper objectMapper;
     private HashMap<String, Command> commandMap = new HashMap<>();
+    private ArrayList<Processor> processors = new ArrayList<>();
+
     private Config config;
 
     private DB db;
@@ -94,20 +106,30 @@ public class Bot extends PircBot {
 
     @Override
     protected void onMessage(String channel, String sender, String login, String hostname, String message) {
-        //TODO: Check ignore here.
+        User user = getUser(sender, channel);
+
+        //Ignore self for any processing.
+        if(user.getNick().equals(config.getNick())) {
+            return;
+        }
+
         if(message.startsWith(config.getCommandChar())) {
             String commandName = message;
 
             //Try to chop off the first word
             int commandNameEnd = message.indexOf(" ");
             String args = null;
+
+            //Strip off the command character for looking up the command
             if(commandNameEnd != -1) {
-                commandName = message.substring(0, commandNameEnd);
-                args = StringUtils.strip(message.substring(commandName.length()));
+                commandName = message.substring(config.getCommandChar().length(), commandNameEnd);
+                args = StringUtils.strip(message.substring(config.getCommandChar().length() + commandName.length()));
+            }else {
+                commandName = commandName.substring(config.getCommandChar().length());
             }
 
             try {
-                fireCommand(commandName, channel, sender, args);
+                fireCommand(user, commandName, args);
             }catch(Exception e) {
                 String target = channel == null? sender : channel;
                 this.sendMessage(target, "fyf " + sender);
@@ -121,34 +143,45 @@ public class Bot extends PircBot {
                     this.sendMessage("Gnome", st[i].toString());
                 }
             }
-        }
-    }
-
-    protected void fireCommand(String commandName, String channel, String sender, String args) {
-        LOGGER.debug("Firing command " + commandName);
-        Command commandObj = commandMap.get(commandName);
-        User user = getUser(sender);
-        if(commandObj != null && commandObj.authorized(user)) {
-            List<BotAction> actions = commandObj.execute(user, channel, args);
-            if(actions != null) {
-                for(BotAction action : actions) {
-                    switch(action.getType()) {
-                        case MESSAGE:
-                            String target = channel == null? sender : channel;
-                            this.sendMessage(target, action.getPayload());
-                            break;
-                        default:
-                            LOGGER.error("Unknown action " + action);
-                            break;
-                    }
+        }else {
+            for(Processor processor : processors) {
+                if(processor.shouldProcess(message)) {
+                    processor.process(user, message);
                 }
             }
         }
     }
 
+    protected void fireCommand(User user, String commandName, String args) {
+        LOGGER.debug("Firing command " + commandName);
+        Command commandObj = commandMap.get(commandName);
+        if(commandObj != null && commandObj.authorized(user)) {
+            commandObj.execute(user, args);
+        }
+    }
+
+    @Override
+    public void observe(Event event) {
+        if(event instanceof MessageEvent) {
+            MessageEvent msgEvent = (MessageEvent)event;
+            sendMessage(msgEvent.getTarget(), msgEvent.getMessage());
+        }
+    }
+
     private void loadCommands() {
-        commandMap.put(config.getCommandChar() + "quote", new QuoteCommand(db.getCollection("quotes")));
-        commandMap.put(config.getCommandChar() + "head", new HeadCommand());
+        loadCommand(new QuoteCommand(db.getCollection("quotes")));
+        loadCommand(new HeadCommand());
+        loadCommand(new KarmaCommand(db.getCollection("karma")));
+        loadCommand(new YourMomCommand(db.getCollection("yourmom")));
+    }
+
+    private void loadCommand(Command command) {
+        command.addObserver(this);
+        commandMap.put(command.getCommandName(), command);
+
+        if(command instanceof Processor) {
+            processors.add((Processor)command);
+        }
     }
 
     private void loadConfig() throws Exception {
@@ -160,8 +193,8 @@ public class Bot extends PircBot {
         }
     }
 
-    private User getUser(String userName) {
-        User user = null;
+    private User getUser(String userName, String channel) {
+        User user;
         DBCursor userCur = users.find(new BasicDBObject("nick", userName));
         if(userCur.hasNext()) {
             DBObject userObj = userCur.next();
@@ -170,6 +203,7 @@ public class Bot extends PircBot {
             user = new User(0);
             user.setNick(userName);
         }
+        user.setChannel(channel);
         return user;
     }
 }

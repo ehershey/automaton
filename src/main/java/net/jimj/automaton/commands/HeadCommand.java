@@ -22,7 +22,7 @@
 
 package net.jimj.automaton.commands;
 
-import net.jimj.automaton.BotAction;
+import net.jimj.automaton.events.MessageEvent;
 import net.jimj.automaton.model.User;
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
@@ -33,9 +33,6 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class HeadCommand extends Command {
     private static final Logger LOGGER = LoggerFactory.getLogger(HeadCommand.class);
     private HttpClient httpClient;
@@ -45,9 +42,12 @@ public class HeadCommand extends Command {
     }
 
     @Override
-    public List<BotAction> execute(User user, String channel, String args) {
-        List<BotAction> actions = new ArrayList<BotAction>();
+    public String getCommandName() {
+        return "head";
+    }
 
+    @Override
+    public void execute(User user, String args) {
         if(!args.startsWith("http://") && !args.startsWith("https://")) {
             args = "http://" + args;
         }
@@ -56,24 +56,16 @@ public class HeadCommand extends Command {
         try {
             HttpResponse response = httpClient.execute(headMethod);
             StatusLine status = response.getStatusLine();
-            BotAction statusAction = new BotAction(BotAction.Type.MESSAGE);
-            statusAction.setPayload(status.getStatusCode() + " " + status.getReasonPhrase());
-            actions.add(statusAction);
+            notifyObserver(new MessageEvent(user, status.getStatusCode() + " " + status.getReasonPhrase()));
 
             Header[] serverHeaders = response.getHeaders("Server");
             if(serverHeaders != null) {
-                BotAction serverAction = new BotAction(BotAction.Type.MESSAGE);
-                serverAction.setPayload("Server: " + serverHeaders[0].getValue());
-                actions.add(serverAction);
+                notifyObserver(new MessageEvent(user, "Server: " + serverHeaders[0].getValue()));
             }
             headMethod.releaseConnection();
         }catch(Exception e) {
-            BotAction errorAction = new BotAction(BotAction.Type.MESSAGE);
-            errorAction.setPayload("fyf " + user.getNick());
             LOGGER.error("Error in HEAD", e);
         }
-
-        return actions;
     }
 
     @Override
