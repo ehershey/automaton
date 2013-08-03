@@ -56,44 +56,29 @@ public class KarmaCommand extends Command implements Processor {
         }
     }
 
-    private void addKarma(String item) {
+    protected void addKarma(String item) {
         Karma karma = getKarma(item);
-        if(karma == null) {
-            karma = new Karma();
-            karma.setItem(item);
-            karma.setValue(1);
-        }else {
-            int value = karma.getValue();
-            value++;
-            karma.setValue(value);
-        }
+        int newVal = (karma.getValue()+1);
+        karma.setValue(newVal);
         putKarma(karma);
     }
 
-    private void subtractKarma(String item) {
+    protected void subtractKarma(String item) {
         Karma karma = getKarma(item);
-        if(karma == null) {
-            karma = new Karma();
-            karma.setItem(item);
-            karma.setValue(1);
-        }else {
-            int value = karma.getValue();
-            value--;
-            karma.setValue(value);
-        }
+        int newVal = (karma.getValue()-1);
+        karma.setValue(newVal);
         putKarma(karma);
     }
 
-    private Karma getKarma(String item) {
+    protected Karma getKarma(String item) {
         LOGGER.trace("Looking for karma for " + item);
-        Karma karma = null;
+        Karma karma = new Karma(item.toLowerCase());
 
-        BasicDBObject query = new BasicDBObject(KARMA_ITEM, item);
+        BasicDBObject query = new BasicDBObject(KARMA_ITEM, item.toLowerCase());
         DBCursor cur = karmaCollection.find(query);
 
         if(cur != null && cur.hasNext()) {
             DBObject karmaObj = cur.next();
-            karma = new Karma();
             karma.setId(karmaObj.get("_id"));
             karma.setItem((String)karmaObj.get(KARMA_ITEM));
             karma.setValue((Integer)karmaObj.get(KARMA_VALUE));
@@ -117,11 +102,19 @@ public class KarmaCommand extends Command implements Processor {
         }
     }
 
-    private class Karma {
+    protected class Karma {
         private Object id;
         private String item;
         private int value;
 
+        protected Karma() {
+            value = 0;
+        }
+
+        protected Karma(String item) {
+            value = 0;
+            this.item = item;
+        }
         public Object getId() {
             return id;
         }
