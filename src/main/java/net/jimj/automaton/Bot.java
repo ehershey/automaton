@@ -32,6 +32,7 @@ import net.jimj.automaton.commands.Command;
 import net.jimj.automaton.commands.CommandObserver;
 import net.jimj.automaton.commands.HeadCommand;
 import net.jimj.automaton.commands.KarmaCommand;
+import net.jimj.automaton.commands.NoteCommand;
 import net.jimj.automaton.commands.Processor;
 import net.jimj.automaton.commands.QuoteCommand;
 import net.jimj.automaton.commands.YourMomCommand;
@@ -173,6 +174,7 @@ public class Bot extends PircBot implements CommandObserver {
         loadCommand(new HeadCommand());
         loadCommand(new KarmaCommand(db.getCollection("karma")));
         loadCommand(new YourMomCommand(db.getCollection("yourmom")));
+        loadCommand(new NoteCommand(db.getCollection("notes")));
     }
 
     private void loadCommand(Command command) {
