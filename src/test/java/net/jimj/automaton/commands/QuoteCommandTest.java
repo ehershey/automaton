@@ -115,11 +115,6 @@ public class QuoteCommandTest {
     }
 
     @Test
-    public void testSquash() {
-        assertEquals("squash test", command.squash(split("this squash test"), 1));
-    }
-
-    @Test
     public void testGetNormalizedNick() {
         assertEquals("Normalized nick wrong", "gnome", command.getNormalizedNick("<Gnome>"));
         assertEquals("Normalized nick wrong", "gnome", command.getNormalizedNick("<@Gnome>"));
