@@ -113,11 +113,11 @@ public class QuoteCommandTest {
             assertTrue(String.format("Expected to find %s", candidate), found.contains(candidate));
         }
     }
-//
-//    @Test
-//    public void testSquash() {
-//        assertEquals("squash test", command.squash(split("this squash test"), 1));
-//    }
+
+    @Test
+    public void testSquash() {
+        assertEquals("squash test", command.squash(split("this squash test"), 1));
+    }
 
     @Test
     public void testGetNormalizedNick() {

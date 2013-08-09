@@ -1,6 +1,6 @@
 {
     "server": "irc.slashnet.org",
-    "nick": "thebot-test",
+    "nick": "thebot",
     "commandChar": ".",
-    "channels": ["#jimonly"]
+    "channels": ["#telerama"]
 }

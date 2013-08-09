@@ -70,7 +70,7 @@ public class QuoteCommand extends Command {
         int searchStart = args.indexOf("/");
         int searchEnd = args.lastIndexOf("/");
 
-        String[] argParts = ArgUtil.split(args);
+        String[] argParts = args.split(" ");
         //If there's more than 1 argument, and no search term.
         if(argParts.length > 1 && searchStart == searchEnd) {
             LOGGER.debug(String.format("%d > 1 && %d == %d", argParts.length, searchStart, searchEnd));
@@ -107,7 +107,7 @@ public class QuoteCommand extends Command {
                 }
 
                 //Cut out the passed in nicks from the actual quote.
-                quote = ArgUtil.squash(argParts, quoteStart);
+                quote = squash(argParts, quoteStart);
             }
 
             BasicDBObject quoteObj = new BasicDBObject(QUOTE_NICK, nicks);
@@ -121,6 +121,14 @@ public class QuoteCommand extends Command {
             stored = true;
         }
         return stored;
+    }
+
+    protected String squash(String[] parts, int from) {
+        StringBuilder result = new StringBuilder();
+        for(int i=from;i<parts.length;i++) {
+            result.append(parts[i]).append(" ");
+        }
+        return result.toString().trim();
     }
 
     protected int findQuoteStart(String[] argParts) {
